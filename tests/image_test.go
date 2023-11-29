@@ -2,6 +2,7 @@ package tests
 
 import (
 	"dockerizer/server"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -29,7 +30,24 @@ func TestImages(t *testing.T) {
 		rr := httptest.NewRecorder()
 		handler := http.HandlerFunc(server.GetAllImages)
 		handler.ServeHTTP(rr, req)
+		if rr.Code != http.StatusOK {
+			t.Errorf("Wanted %q got %q", http.StatusOK, rr.Code)
+		}
+	})
 
+	t.Run("Pull image", func(t *testing.T) {
+		imageName := "alpine"
+		req, err := http.NewRequest(
+			"GET",
+			fmt.Sprintf("/image/pull/%s", imageName),
+			nil,
+		)
+		if err != nil {
+			t.Errorf("Failed to create request %q", err)
+		}
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(server.PullImage)
+		handler.ServeHTTP(rr, req)
 		if rr.Code != http.StatusOK {
 			t.Errorf("Wanted %q got %q", http.StatusOK, rr.Code)
 		}

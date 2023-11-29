@@ -4,7 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"os"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"github.com/go-chi/chi/v5"
@@ -42,8 +45,28 @@ func (s *Server) GetAllImages(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
+func (s *Server) PullImage(w http.ResponseWriter, r *http.Request) {
+	image := chi.URLParam(r, "image")
+	if image == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	ctx := context.Background()
+	out, err := s.dockerClient.ImagePull(ctx, image, types.ImagePullOptions{})
+	if err != nil {
+		fmt.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	defer out.Close()
+	io.Copy(os.Stdout, out)
+	w.WriteHeader(http.StatusOK)
+	return
+}
+
 func (s *Server) RegisterRoutes(r chi.Router) {
 	r.Route("/image", func(r chi.Router) {
 		r.Get("/", s.GetAllImages)
+		r.Get("/pull/{image}", s.PullImage)
 	})
 }
