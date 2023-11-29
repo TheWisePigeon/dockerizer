@@ -1,13 +1,8 @@
 package main
 
 import (
-	"context"
 	"dockerizer/server"
-	"encoding/json"
-	"fmt"
 	"net/http"
-
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-playground/validator/v10"
