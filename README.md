@@ -1,0 +1,2 @@
+# dockerizer
+Docker command runner
