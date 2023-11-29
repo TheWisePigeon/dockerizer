@@ -1,7 +1,20 @@
 package main
 
-import "github.com/thewisepigeon/dockerizer/cmd"
+import (
+	"github.com/go-chi/chi/v5"
+	"net/http"
+)
 
 func main() {
-	cmd.Execute()
+	r := chi.NewRouter()
+
+	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("Hello bozo"))
+		return
+	})
+	err := http.ListenAndServe(":6061", r)
+	if err != nil {
+		panic(err)
+	}
 }
