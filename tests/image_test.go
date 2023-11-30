@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-
 	"github.com/docker/docker/client"
 	"github.com/go-playground/validator/v10"
 )
@@ -31,7 +30,7 @@ func TestImages(t *testing.T) {
 		handler := http.HandlerFunc(server.GetAllImages)
 		handler.ServeHTTP(rr, req)
 		if rr.Code != http.StatusOK {
-			t.Errorf("Wanted %q got %q", http.StatusOK, rr.Code)
+			t.Errorf("Wanted %v got %v", http.StatusOK, rr.Code)
 		}
 	})
 
@@ -67,7 +66,7 @@ func TestImages(t *testing.T) {
 		handler := http.HandlerFunc(server.PullImage)
 		handler.ServeHTTP(rr, req)
 		if rr.Code != http.StatusUnauthorized {
-			t.Errorf("Wanted %d got %d", http.StatusUnauthorized, rr.Code)
+			t.Errorf("Wanted %v got %v", http.StatusUnauthorized, rr.Code)
 		}
 	})
 }
