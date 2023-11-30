@@ -8,18 +8,34 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+  "os"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"github.com/go-playground/validator/v10"
+	"github.com/sirupsen/logrus"
 )
 
 func TestImages(t *testing.T) {
 	client, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	validate := validator.New(validator.WithRequiredStructEnabled())
+	logger := logrus.New()
+	userHomeDir, err := os.UserHomeDir()
+	if err != nil {
+		panic(err)
+	}
+	logfile := fmt.Sprintf("%s/.dockerizer.log", userHomeDir)
+	f, err := os.OpenFile(logfile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
+  defer f.Close()
+	if err != nil {
+		panic(err)
+	}
+	logger.SetReportCaller(true)
+	logger.SetFormatter(&logrus.JSONFormatter{})
+  logger.SetOutput(f)
 	if err != nil {
 		t.Errorf("Error while creating docker client %q", err)
 	}
-	server := server.NewServer(client, validate)
+	server := server.NewServer(client, validate, logger)
 	imageId := ""
 	t.Run("Get list of all images", func(t *testing.T) {
 		req, err := http.NewRequest(
