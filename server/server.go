@@ -4,26 +4,27 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"strings"
-
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-playground/validator/v10"
+	"github.com/sirupsen/logrus"
 )
 
 type Server struct {
 	dockerClient *client.Client
 	validate     *validator.Validate
+	logger       *logrus.Logger
 }
 
-func NewServer(client *client.Client, validate *validator.Validate) *Server {
+func NewServer(client *client.Client, validate *validator.Validate, logger *logrus.Logger) *Server {
 	return &Server{
 		dockerClient: client,
 		validate:     validate,
+		logger:       logger,
 	}
 }
 
@@ -31,13 +32,13 @@ func (s *Server) GetAllImages(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	images, err := s.dockerClient.ImageList(ctx, types.ImageListOptions{})
 	if err != nil {
-		fmt.Println(err)
+		s.logger.Error(err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	data, err := json.Marshal(images)
 	if err != nil {
-		fmt.Println(err)
+		s.logger.Error(err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -59,7 +60,7 @@ func (s *Server) GetImageByName(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	images, err := s.dockerClient.ImageList(ctx, types.ImageListOptions{})
 	if err != nil {
-		fmt.Println(err)
+		s.logger.Error(err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -75,7 +76,7 @@ func (s *Server) GetImageByName(w http.ResponseWriter, r *http.Request) {
 	if found {
 		data, err := json.Marshal(image)
 		if err != nil {
-			fmt.Println(err)
+			s.logger.Error(err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -121,6 +122,7 @@ func (s *Server) RemoveImage(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	_, err := s.dockerClient.ImageRemove(ctx, image, types.ImageRemoveOptions{})
 	if err != nil {
+    s.logger.Error(err)
 		errStr := err.Error()
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(errStr))
@@ -130,10 +132,28 @@ func (s *Server) RemoveImage(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
+func (s *Server) GetAllContainers(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+	containers, err := s.dockerClient.ContainerList(ctx, types.ContainerListOptions{})
+	if err != nil {
+		s.logger.Error(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	data, err := json.Marshal(containers)
+	w.WriteHeader(http.StatusOK)
+	w.Write(data)
+	return
+}
+
+func (s *Server) CreateContainer() {
+
+}
+
 func (s *Server) RegisterRoutes(r chi.Router) {
 	r.Route("/image", func(r chi.Router) {
 		r.Get("/", s.GetAllImages)
-    r.Get("/{image}", s.GetImageByName)
+		r.Get("/{image}", s.GetImageByName)
 		r.Get("/pull/{image}", s.PullImage)
 		r.Delete("/remove/{image}", s.RemoveImage)
 	})

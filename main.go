@@ -2,10 +2,14 @@ package main
 
 import (
 	"dockerizer/server"
+	"fmt"
 	"net/http"
+	"os"
+
 	"github.com/docker/docker/client"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-playground/validator/v10"
+	"github.com/sirupsen/logrus"
 )
 
 type Payload struct {
@@ -21,9 +25,23 @@ func main() {
 	defer dockerClient.Close()
 	r := chi.NewRouter()
 	validate := validator.New(validator.WithRequiredStructEnabled())
-  server := server.NewServer(dockerClient, validate)
+	logger := logrus.New()
+	userHomeDir, err := os.UserHomeDir()
+	if err != nil {
+		panic(err)
+	}
+	logfile := fmt.Sprintf("%s/.dockerizer.log", userHomeDir)
+	f, err := os.OpenFile(logfile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
+  defer f.Close()
+	if err != nil {
+		panic(err)
+	}
+	logger.SetReportCaller(true)
+	logger.SetFormatter(&logrus.JSONFormatter{})
+  logger.SetOutput(f)
+	server := server.NewServer(dockerClient, validate, logger)
 
-  server.RegisterRoutes(r)
+	server.RegisterRoutes(r)
 
 	err = http.ListenAndServe(":6061", r)
 	if err != nil {
