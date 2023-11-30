@@ -37,7 +37,6 @@ func main() {
 		panic(err)
 	}
 	logger.SetReportCaller(true)
-	logger.SetFormatter(&logrus.JSONFormatter{})
   logger.SetOutput(f)
 	server := server.NewServer(dockerClient, validate, logger)
 
