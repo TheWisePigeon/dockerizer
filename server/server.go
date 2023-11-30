@@ -46,10 +46,51 @@ func (s *Server) GetAllImages(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
+func (s *Server) GetImageByName(w http.ResponseWriter, r *http.Request) {
+	imageName := chi.URLParam(r, "image")
+	//For tests only
+	imageName = strings.Split(r.URL.String(), "/")[2]
+	if imageName == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	var image types.ImageSummary
+	found := false
+	ctx := context.Background()
+	images, err := s.dockerClient.ImageList(ctx, types.ImageListOptions{})
+	if err != nil {
+		fmt.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	for _, img := range images {
+		for _, tag := range img.RepoTags {
+			if tag == imageName {
+				image = img
+				found = true
+				break
+			}
+		}
+	}
+	if found {
+		data, err := json.Marshal(image)
+		if err != nil {
+			fmt.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		w.Write(data)
+		return
+	}
+	w.WriteHeader(http.StatusNotFound)
+	return
+}
+
 func (s *Server) PullImage(w http.ResponseWriter, r *http.Request) {
 	image := chi.URLParam(r, "image")
-  //For tests only
-  image = strings.Split(r.URL.String(), "/")[3]
+	//For tests only
+	image = strings.Split(r.URL.String(), "/")[3]
 	if image == "" {
 		w.WriteHeader(http.StatusBadRequest)
 		return
@@ -57,12 +98,9 @@ func (s *Server) PullImage(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	out, err := s.dockerClient.ImagePull(ctx, image, types.ImagePullOptions{})
 	if err != nil {
-    errStr := err.Error()
-	if strings.Contains(errStr, "requested access to the resource is denied") {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-		w.WriteHeader(http.StatusInternalServerError)
+		errStr := err.Error()
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(errStr))
 		return
 	}
 	defer out.Close()
@@ -72,9 +110,31 @@ func (s *Server) PullImage(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
+func (s *Server) RemoveImage(w http.ResponseWriter, r *http.Request) {
+	image := chi.URLParam(r, "image")
+	//For tests only
+	image = strings.Split(r.URL.String(), "/")[3]
+	if image == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	ctx := context.Background()
+	_, err := s.dockerClient.ImageRemove(ctx, image, types.ImageRemoveOptions{})
+	if err != nil {
+		errStr := err.Error()
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(errStr))
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	return
+}
+
 func (s *Server) RegisterRoutes(r chi.Router) {
 	r.Route("/image", func(r chi.Router) {
 		r.Get("/", s.GetAllImages)
+    r.Get("/{image}", s.GetImageByName)
 		r.Get("/pull/{image}", s.PullImage)
+		r.Delete("/remove/{image}", s.RemoveImage)
 	})
 }
